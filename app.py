@@ -38,7 +38,7 @@ background-color:#F2F2F2;
 
 st.markdown("""
 <div class="header-bar">
-<div class="header-text">Attendance OT Monitoring Dashboard</div>
+<div class="header-text">OT Monitoring Dashboard</div>
 </div>
 """, unsafe_allow_html=True)
 
