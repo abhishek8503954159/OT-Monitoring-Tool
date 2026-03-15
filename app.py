@@ -376,5 +376,5 @@ if uploaded_file:
     )
 
     st.plotly_chart(fig_hist, use_container_width=True)
-st.markdown("---") 
-st.image(r"C:\Users\mas1ja\Documents\2025\QMM\Microstructure\matlab_microstructure_Final\matlab_microstructure_Final\frontend\public\strip.png", use_container_width=True)
+#st.markdown("---") 
+#st.image(r"C:\Users\mas1ja\Documents\2025\QMM\Microstructure\matlab_microstructure_Final\matlab_microstructure_Final\frontend\public\strip.png", use_container_width=True)
