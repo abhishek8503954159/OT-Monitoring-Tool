@@ -11,9 +11,8 @@ st.set_page_config(layout="wide")
 # NETWORK FILE PATHS (CHANGE THIS)
 # -------------------------------------------------
 
-ATTENDANCE_FILE = r"C:\Users\mas1ja\OneDrive - Bosch Group\OT Monitoring Tool\Attendence file\Associates Attendance Jan'26-Feb'26.xlsx"
-ESSENTIAL_FILE = r"C:\Users\mas1ja\OneDrive - Bosch Group\OT Monitoring Tool\Essential data\Essential Service Input for 1.5 times - January 2026.xlsx"
-
+ATTENDANCE_FILE = "data/attendance.xlsx"
+ESSENTIAL_FILE = "data/essential_list.xlsx"
 # -------------------------------------------------
 # STYLE
 # -------------------------------------------------
