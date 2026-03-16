@@ -8,13 +8,6 @@ import numpy as np
 st.set_page_config(layout="wide")
 
 # -------------------------------------------------
-# NETWORK FILE PATHS (CHANGE THIS)
-# -------------------------------------------------
-
-ATTENDANCE_FILE = r"C:\Users\mas1ja\OneDrive - Bosch Group\OT Monitoring Tool\Attendence file\Associates Attendance Jan'26-Feb'26.xlsx"
-ESSENTIAL_FILE = r"C:\Users\mas1ja\OneDrive - Bosch Group\OT Monitoring Tool\Essential data\Essential Service Input for 1.5 times - January 2026.xlsx"
-
-# -------------------------------------------------
 # STYLE
 # -------------------------------------------------
 
@@ -53,7 +46,10 @@ st.markdown("""
 # SIDEBAR
 # -------------------------------------------------
 
-st.sidebar.markdown("### Dashboard Controls")
+st.sidebar.markdown("### Upload Files")
+
+uploaded_file = st.sidebar.file_uploader("Upload Attendance Excel File")
+essential_file = st.sidebar.file_uploader("Upload Essential Employee List")
 
 month_option = st.sidebar.selectbox(
 "Select Month",
@@ -72,22 +68,25 @@ holiday_list = pd.to_datetime([
 ], format="%d-%m-%Y")
 
 # -------------------------------------------------
+# -------------------------------------------------
 # ESSENTIAL EMPLOYEES
 # -------------------------------------------------
 
 essential_list = []
 
-try:
+if essential_file:
 
-    essential_df = pd.read_excel(ESSENTIAL_FILE)
+    essential_df = pd.read_excel(essential_file)
     essential_df.columns = essential_df.columns.astype(str).str.strip()
 
+    # detect employee column
     emp_col = None
     for c in essential_df.columns:
         if "employee" in c.lower() or "name" in c.lower():
             emp_col = c
             break
 
+    # if Month column exists
     if "Month" in essential_df.columns:
 
         essential_list = essential_df[
@@ -95,13 +94,8 @@ try:
         ][emp_col].astype(str).tolist()
 
     else:
-
+        # if no month column → take all employees
         essential_list = essential_df[emp_col].astype(str).tolist()
-
-except Exception as e:
-
-    st.error("Essential Employee File Not Found")
-    st.stop()
 
 # -------------------------------------------------
 # HELPERS
@@ -126,10 +120,12 @@ def is_essential(emp):
 
 def process_sheet(sheet):
 
-    raw = pd.read_excel(ATTENDANCE_FILE, sheet_name=sheet, header=None)
+    # Read sheet without header
+    raw = pd.read_excel(uploaded_file, sheet_name=sheet, header=None)
 
     header_row = None
 
+    # find header row containing Personnel
     for i,row in raw.iterrows():
 
         row_str = row.astype(str).str.lower()
@@ -141,10 +137,12 @@ def process_sheet(sheet):
     if header_row is None:
         raise Exception("Header row not found")
 
-    df = pd.read_excel(ATTENDANCE_FILE, sheet_name=sheet, header=header_row)
+    # read again with correct header
+    df = pd.read_excel(uploaded_file, sheet_name=sheet, header=header_row)
 
     df.columns = df.columns.astype(str).str.strip()
 
+    # Detect important columns
     personnel_col = None
     name_col = None
     area_col = None
@@ -178,22 +176,24 @@ def process_sheet(sheet):
     else:
         df["Area"] = "Unknown"
 
+    # Remove empty rows
     df = df.dropna(subset=["Personnel Number"])
 
+    # Detect date columns
     date_columns = []
 
     for col in df.columns:
-
+    
         col_str = str(col)
-
+    
         if "/" in col_str or "-" in col_str:
-
+    
             try:
                 pd.to_datetime(col_str, errors="raise")
                 date_columns.append(col)
             except:
                 pass
-
+    #st.write("Detected Date Columns:", date_columns)
     df_long = df.melt(
         id_vars=["Personnel Number","Employee/app.name","Area"],
         value_vars=date_columns,
@@ -226,39 +226,6 @@ def process_sheet(sheet):
     return df_long
 
 # -------------------------------------------------
-# MAIN
-# -------------------------------------------------
-
-try:
-
-    xls = pd.ExcelFile(ATTENDANCE_FILE)
-
-except:
-
-    st.error("Attendance file not found in network folder.")
-    st.stop()
-
-all_data = []
-
-for sheet in xls.sheet_names:
-
-    try:
-
-        data = process_sheet(sheet)
-        all_data.append(data)
-
-    except Exception as e:
-
-        st.warning(f"Skipping sheet {sheet}")
-
-if len(all_data) == 0:
-
-    st.error("No valid sheets found.")
-    st.stop()
-
-combined_data = pd.concat(all_data, ignore_index=True)
-
-# -------------------------------------------------
 # SUMMARY
 # -------------------------------------------------
 
@@ -286,39 +253,11 @@ def create_summary(data):
         inplace=True
     )
 
-    # -----------------------------
-    # NEW → OT DATE + HOURS
-    # -----------------------------
-
-    ot_data = data[data["Daily_OT"] > 0]
-
-    ot_details = ot_data.groupby(
-        ["Personnel Number","Employee/app.name","Area"]
-    ).apply(
-        lambda x: ", ".join(
-            f"{d.strftime('%d-%m-%Y')} ({ot}h)"
-            for d, ot in zip(x["Date"], x["Daily_OT"])
-        )
-    ).reset_index(name="OT Details")
-
-    # -----------------------------
-    # MERGE DATA
-    # -----------------------------
-
     final = pd.merge(
         weekly_max,
         ot_total,
         on=["Personnel Number","Employee/app.name","Area"]
     )
-
-    final = pd.merge(
-        final,
-        ot_details,
-        on=["Personnel Number","Employee/app.name","Area"],
-        how="left"
-    )
-
-    final["OT Details"] = final["OT Details"].fillna("No OT")
 
     final["Continous Working >10 days"] = "No"
 
@@ -340,71 +279,102 @@ def create_summary(data):
 
     return final
 
-summary = create_summary(combined_data)
+# -------------------------------------------------
+# MAIN
+# -------------------------------------------------
 
-st.subheader("Combined Summary")
+if uploaded_file:
 
-st.dataframe(summary, use_container_width=True)
+    xls = pd.ExcelFile(uploaded_file)
 
-st.markdown("---")
+    all_data = []
 
-st.subheader("Workforce OT Analytics")
+    for sheet in xls.sheet_names:
 
-area_ot = summary.groupby("Area")["Total OT Hours"].sum().reset_index()
+        try:
 
-fig_area = px.pie(
-    area_ot,
-    names="Area",
-    values="Total OT Hours"
-)
+            data = process_sheet(sheet)
+            all_data.append(data)
 
-st.plotly_chart(fig_area, use_container_width=True)
+        except Exception as e:
 
-top10 = summary.sort_values(
-    by="Total OT Hours",
-    ascending=False
-).head(10)
+            st.warning(f"Skipping sheet {sheet}")
+            st.write(e)
 
-fig_top = px.bar(
-    top10,
-    x="Name",
-    y="Total OT Hours",
-    color="Area"
-)
+    if len(all_data) == 0:
 
-st.plotly_chart(fig_top, use_container_width=True)
+        st.error("No valid sheets found.")
+        st.stop()
 
-daily_ot = combined_data.groupby("Date")["Daily_OT"].sum().reset_index()
+    combined_data = pd.concat(all_data, ignore_index=True)
 
-fig_trend = px.line(
-    daily_ot,
-    x="Date",
-    y="Daily_OT",
-    markers=True
-)
+    summary = create_summary(combined_data)
 
-st.plotly_chart(fig_trend, use_container_width=True)
+    st.subheader("Combined Summary")
 
-ot_nonzero = summary[summary["Total OT Hours"] > 0]
+    st.dataframe(summary, use_container_width=True)
 
-counts, bins = np.histogram(
-    ot_nonzero["Total OT Hours"],
-    bins=15
-)
+    st.markdown("---")
 
-centers = 0.5 * (bins[:-1] + bins[1:])
+    st.subheader("Workforce OT Analytics")
 
-fig_hist = go.Figure()
+    area_ot = summary.groupby("Area")["Total OT Hours"].sum().reset_index()
 
-fig_hist.add_bar(
-    x=centers,
-    y=counts
-)
+    fig_area = px.pie(
+        area_ot,
+        names="Area",
+        values="Total OT Hours"
+    )
 
-fig_hist.update_layout(
-    title="OT Distribution",
-    xaxis_title="OT Hours",
-    yaxis_title="Employees"
-)
+    st.plotly_chart(fig_area, use_container_width=True)
 
-st.plotly_chart(fig_hist, use_container_width=True)
+    top10 = summary.sort_values(
+        by="Total OT Hours",
+        ascending=False
+    ).head(10)
+
+    fig_top = px.bar(
+        top10,
+        x="Name",
+        y="Total OT Hours",
+        color="Area"
+    )
+
+    st.plotly_chart(fig_top, use_container_width=True)
+
+    daily_ot = combined_data.groupby("Date")["Daily_OT"].sum().reset_index()
+
+    fig_trend = px.line(
+        daily_ot,
+        x="Date",
+        y="Daily_OT",
+        markers=True
+    )
+
+    st.plotly_chart(fig_trend, use_container_width=True)
+
+    ot_nonzero = summary[summary["Total OT Hours"] > 0]
+
+    counts, bins = np.histogram(
+        ot_nonzero["Total OT Hours"],
+        bins=15
+    )
+
+    centers = 0.5 * (bins[:-1] + bins[1:])
+
+    fig_hist = go.Figure()
+
+    fig_hist.add_bar(
+        x=centers,
+        y=counts
+    )
+
+    fig_hist.update_layout(
+        title="OT Distribution",
+        xaxis_title="OT Hours",
+        yaxis_title="Employees"
+    )
+
+    st.plotly_chart(fig_hist, use_container_width=True)
+#st.markdown("---") 
+#st.image(r"C:\Users\mas1ja\Documents\2025\QMM\Microstructure\matlab_microstructure_Final\matlab_microstructure_Final\frontend\public\strip.png", use_container_width=True)
