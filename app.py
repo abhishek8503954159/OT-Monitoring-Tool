@@ -1,3 +1,4 @@
+### OT Dashboard Code
 import streamlit as st
 import pandas as pd
 from datetime import timedelta
@@ -6,6 +7,33 @@ import plotly.graph_objects as go
 import numpy as np
 
 st.set_page_config(layout="wide")
+st.markdown("""
+<style>
+
+/* Remove extra vertical spacing between blocks */
+div[data-testid="stVerticalBlock"]{
+    gap:0.5rem;
+}
+
+/* Remove space inside containers */
+div[data-testid="stVerticalBlock"] > div{
+    padding-top:0px;
+    padding-bottom:0px;
+}
+
+/* Reduce heading spacing */
+h1, h2, h3, h4 {
+    margin-top: 0px !important;
+    margin-bottom: 2px !important;
+}
+
+/* Reduce button spacing */
+div.stButton {
+    margin-bottom:-5px !important;
+}
+
+</style>
+""", unsafe_allow_html=True)
 
 # -------------------------------------------------
 # NETWORK FILE PATHS (CHANGE THIS)
@@ -13,7 +41,7 @@ st.set_page_config(layout="wide")
 
 ATTENDANCE_FILE = "data/attendance.xlsx"
 ESSENTIAL_FILE = "data/essential_list.xlsx"
-# -------------------------------------------------
+# --------------------------------------
 # STYLE
 # -------------------------------------------------
 
@@ -51,15 +79,33 @@ st.markdown("""
 # -------------------------------------------------
 # SIDEBAR
 # -------------------------------------------------
+# SESSION STATE INITIALIZATION
+# -------------------------------------------------
 
-st.sidebar.markdown("### Dashboard Controls")
+if "selected_months" not in st.session_state:
+    st.session_state.selected_months = []
 
-month_option = st.sidebar.selectbox(
-"Select Month",
-["January","February","March","April","May","June",
-"July","August","September","October","November","December"]
-)
+# -------------------------------------------------
+# -------------------------------------------------
+# MONTH TILE SELECTOR
+# -------------------------------------------------
 
+
+
+months = [
+    "Jan","Feb","Mar","Apr","May","Jun",
+    "Jul","Aug","Sep","Oct","Nov","Dec"
+]
+
+# session state
+selected_months = st.session_state.selected_months
+
+    # color logic
+   # color = "#198754" if m in st.session_state.selected_months else "#E9ECEF"
+
+  
+
+   
 # -------------------------------------------------
 # HOLIDAYS
 # -------------------------------------------------
@@ -87,11 +133,10 @@ try:
             emp_col = c
             break
 
-    if "Month" in essential_df.columns:
-
+    if "Month" in essential_df.columns and selected_months:
         essential_list = essential_df[
-            essential_df["Month"] == month_option
-        ][emp_col].astype(str).tolist()
+        essential_df["Month"].isin(selected_months)
+    ][emp_col].astype(str).tolist()
 
     else:
 
@@ -128,6 +173,10 @@ def process_sheet(sheet):
     raw = pd.read_excel(ATTENDANCE_FILE, sheet_name=sheet, header=None)
 
     header_row = None
+    
+    
+    
+    
 
     for i,row in raw.iterrows():
 
@@ -221,7 +270,12 @@ def process_sheet(sheet):
         df_long["Date"]
         - pd.to_timedelta((df_long["Date"].dt.weekday + 1) % 7, unit="D")
     ).dt.date
+    
+    
 
+    df_long["Month"] = sheet
+    
+    
     return df_long
 
 # -------------------------------------------------
@@ -257,6 +311,18 @@ if len(all_data) == 0:
 
 combined_data = pd.concat(all_data, ignore_index=True)
 
+if selected_months:
+
+    month_map = {
+        "Jan":1,"Feb":2,"Mar":3,"Apr":4,"May":5,"Jun":6,
+        "Jul":7,"Aug":8,"Sep":9,"Oct":10,"Nov":11,"Dec":12
+    }
+
+    selected_month_numbers = [month_map[m] for m in selected_months]
+
+    combined_data = combined_data[
+        combined_data["Date"].dt.month.isin(selected_month_numbers)
+    ]
 # -------------------------------------------------
 # SUMMARY
 # -------------------------------------------------
@@ -341,69 +407,487 @@ def create_summary(data):
 
 summary = create_summary(combined_data)
 
-st.subheader("Combined Summary")
+# -------------------------------------------------
 
-st.dataframe(summary, use_container_width=True)
+# -------------------------------------------------
+# -------------------------------------------------
+# POLICY KPI CARDS (PROPER LAYOUT)
+# -------------------------------------------------
+# -------------------------------------------------
+# POLICY KPI CARDS (CLICKABLE WITHOUT VIEW BUTTON)
+# -------------------------------------------------
+
+week_violation = summary[summary["Working hr/week"] > 60]
+ot_violation = summary[summary["Total OT Hours"] > 50]
+cont_violation = summary[summary["Continous Working >10 days"] == "Yes"]
+
+#st.markdown("## 🚨 Policy Monitoring")
+
+# Invisible button style
+st.markdown("""
+<style>
+div.stButton > button {
+    width:100%;
+    height:50px;
+    border:none;
+    background:transparent;
+}
+</style>
+""", unsafe_allow_html=True)
+
+c1, c2, c3 = st.columns(3)
+
+# -------------------------------------------------
+# TILE 1
+# -------------------------------------------------
+
+with c1:
+    st.markdown(f"""
+    <div style="
+        background:#ffe6e6;
+        padding:25px;
+        border-radius:12px;
+        text-align:center;
+        border:2px solid red;
+        cursor:pointer;
+    ">
+        <h2>⏱</h2>
+        <h4>Working hrs</h4>
+        <h4>>60 / Week</h4>
+        <h2 style="color:red;">{len(week_violation)}</h2>
+        <p>Employees</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    week_btn = st.button("", key="week_tile")
+
+# -------------------------------------------------
+# TILE 2
+# -------------------------------------------------
+
+with c2:
+    st.markdown(f"""
+    <div style="
+        background:#fff3e0;
+        padding:25px;
+        border-radius:12px;
+        text-align:center;
+        border:2px solid orange;
+        cursor:pointer;
+    ">
+        <h2>📈</h2>
+        <h4>OT hrs</h4>
+        <h4>>50 / Quarter</h4>
+        <h2 style="color:orange;">{len(ot_violation)}</h2>
+        <p>Employees</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    ot_btn = st.button("", key="ot_tile")
+
+# -------------------------------------------------
+# TILE 3
+# -------------------------------------------------
+
+with c3:
+    st.markdown(f"""
+    <div style="
+        background:#f3e5f5;
+        padding:25px;
+        border-radius:12px;
+        text-align:center;
+        border:2px solid purple;
+        cursor:pointer;
+    ">
+        <h2>🔁</h2>
+        <h4>Continuous Punch</h4>
+        <h4>>10 Days</h4>
+        <h2 style="color:purple;">{len(cont_violation)}</h2>
+        <p>Employees</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    cont_btn = st.button("", key="cont_tile")
+
+
+# -------------------------------------------------
+# SHOW DETAILS BASED ON TILE CLICK
+# -------------------------------------------------
+
+# ⏱ Working Hours >60
+if week_btn:
+
+    st.markdown("### ⏱ Employees Working >60 hrs/week")
+
+    if len(week_violation) > 0:
+
+        for _, row in week_violation.iterrows():
+
+            st.markdown(f"""
+            <div style="
+                border:3px solid red;
+                border-radius:10px;
+                padding:15px;
+                margin-bottom:10px;
+                background:#ffe6e6;
+            ">
+            <b>{row['Name']}</b><br>
+            E.No : {row['E.No']}<br>
+            Area : {row['Area']}<br>
+            Working hr/week : {row['Working hr/week']}<br>
+            OT Details : {row['OT Details']}
+            </div>
+            """, unsafe_allow_html=True)
+
+    else:
+        st.success("No employees exceeding 60 hrs/week")
+
+
+# 📈 OT >50
+if ot_btn:
+
+    st.markdown("### 📈 Employees OT >50 hrs / Quarter")
+
+    if len(ot_violation) > 0:
+
+        for _, row in ot_violation.iterrows():
+
+            st.markdown(f"""
+            <div style="
+                border:3px solid orange;
+                border-radius:10px;
+                padding:15px;
+                margin-bottom:10px;
+                background:#fff3e0;
+            ">
+            <b>{row['Name']}</b><br>
+            E.No : {row['E.No']}<br>
+            Area : {row['Area']}<br>
+            Total OT Hours : {row['Total OT Hours']}<br>
+            OT Details : {row['OT Details']}
+            </div>
+            """, unsafe_allow_html=True)
+
+    else:
+        st.success("No employees exceeding 50 OT hours")
+
+
+# 🔁 Continuous Punch
+if cont_btn:
+
+    st.markdown("### 🔁 Continuous Punch >10 Days")
+
+    if len(cont_violation) > 0:
+
+        for _, row in cont_violation.iterrows():
+
+            st.markdown(f"""
+            <div style="
+                border:3px solid purple;
+                border-radius:10px;
+                padding:15px;
+                margin-bottom:10px;
+                background:#f3e5f5;
+            ">
+            <b>{row['Name']}</b><br>
+            E.No : {row['E.No']}<br>
+            Area : {row['Area']}<br>
+            Status : Continuous Working >10 days
+            </div>
+            """, unsafe_allow_html=True)
+
+    else:
+        st.success("No continuous punch violations")
+
+# ---------------------------------------
+# DEPT WISE DEVIATION COUNT
+# ---------------------------------------
+
+dept_deviation = (
+    summary[summary["Remark"] == "Exceeded 60 hr/week"]
+    .groupby("Area")
+    .size()
+    .reset_index(name="Deviation Count")
+)
+
+dept_text = ""
+
+for _, row in dept_deviation.iterrows():
+    dept_text += f"{row['Area']} : {row['Deviation Count']} no's  |  "
+
+
+# -------------------------------------------------
+# DEVIATION MONITORING
+# -------------------------------------------------
+
+st.markdown(
+    "<h3 style='margin-top:5px;margin-bottom:5px;'>🚨 Deviation Monitoring</h3>",
+    unsafe_allow_html=True
+)
+
+st.markdown("### Department Deviation")
+
+cols = st.columns(6)
+
+for i, row in dept_deviation.iterrows():
+
+    dept = row["Area"]
+    count = row["Deviation Count"]
+
+    tile = f"""
+    <div style="
+        background-color:#F5F5F5;
+        padding:15px;
+        border-radius:10px;
+        text-align:center;
+        border:1px solid #DDD;
+        margin-bottom:10px;
+    ">
+        <h4 style="margin:0;">{dept}</h4>
+        <h2 style="margin:0;color:#E53935;">{count}</h2>
+        <span style="font-size:12px;">Deviations</span>
+    </div>
+    """
+
+    cols[i % 6].markdown(tile, unsafe_allow_html=True)
+
+violated = summary[summary["Working hr/week"] > 60]
+
+risk = summary[
+    (summary["Working hr/week"] >= 55) &
+    (summary["Working hr/week"] <= 60)
+]
+
+# KPI NUMBERS
+
+col1, col2 = st.columns(2)
+
+with col1:
+    st.error(f"🔴 Violations : {len(violated)}")
+
+with col2:
+    st.warning(f"🟠 Risk : {len(risk)}")
+
+# -------------------------------------------------
+# VIOLATION DETAILS (EXPANDABLE)
+# -------------------------------------------------
+
+with st.expander("🔴 View Policy Violations"):
+
+    if len(violated) > 0:
+
+        for _, row in violated.iterrows():
+
+            st.markdown(f"""
+            <div style="
+                border:3px solid red;
+                border-radius:10px;
+                padding:15px;
+                margin-bottom:12px;
+                background-color:#ffe6e6;
+            ">
+            <b>👤 {row['Name']}</b><br>
+            <b>E.No :</b> {row['E.No']} <br>
+            <b>Area :</b> {row['Area']} <br>
+            <b>Working hr/week :</b> {row['Working hr/week']} <br><br>
+
+            <b style="color:red;">Violation :</b> {row['Remark']}<br>
+            <b>OT Dates :</b> {row['OT Details']}
+            </div>
+            """, unsafe_allow_html=True)
+
+    else:
+
+        st.success("No policy violations detected")
+
+# -------------------------------------------------
+# RISK DETAILS (EXPANDABLE)
+# -------------------------------------------------
+
+with st.expander("🟠 View Employees Close to Violation"):
+
+    if len(risk) > 0:
+
+        for _, row in risk.iterrows():
+
+            st.markdown(f"""
+            <div style="
+                border:3px solid orange;
+                border-radius:10px;
+                padding:15px;
+                margin-bottom:12px;
+                background-color:#fff3e0;
+            ">
+            <b>👤 {row['Name']}</b><br>
+            <b>E.No :</b> {row['E.No']} <br>
+            <b>Area :</b> {row['Area']} <br>
+            <b>Working hr/week :</b> {row['Working hr/week']} <br><br>
+
+            <b style="color:orange;">Warning :</b> Close to 60 hr/week limit<br>
+            <b>OT Dates :</b> {row['OT Details']}
+            </div>
+            """, unsafe_allow_html=True)
+
+    else:
+
+        st.info("No employees close to violation")
+
+
+
+
+
+
+
+# -------------------------------------------------
+# DEPTWISE DEVIATION COUNT
+# -------------------------------------------------
+
+
+
+# -------------------------------------------------
+# -------------------------------------------------
+# -------------------------------------------------
+# DEPT WISE OT TREND (% SHARE)
+# -------------------------------------------------
+
+st.subheader("📊 Dept wise OT Trend (%)")
+
+# -------------------------------------------------
+# DEPT WISE OT TREND (%)
+# -------------------------------------------------
+
+
+
+#st.markdown("## 📊 Dept Wise OT Trend (%)")
+
+# Create bar chart
+# -------------------------------------------------
+# DEPT WISE OT TREND (%)
+# -------------------------------------------------
+
+# -------------------------------------------------
+# DEPT WISE OT TREND (%)
+# -------------------------------------------------
+
+# -------------------------------------------------
+# DEPT WISE OT TREND (%)
+# -------------------------------------------------
+
+# -------------------------------------------------
+# DEPT WISE OT TREND (%)
+# -------------------------------------------------
+
+# -------------------------------------------------
+# DEPT WISE OT TREND (%)
+# -------------------------------------------------
+
+# Clean month values
+combined_data["Month"] = combined_data["Month"].astype(str).str[:3]
+
+month_order = [
+    "Jan","Feb","Mar","Apr","May","Jun",
+    "Jul","Aug","Sep","Oct","Nov","Dec"
+]
+
+# Department OT calculation
+dept_ot = combined_data.groupby(["Month","Area"]).agg(
+    total_emp=("Personnel Number", "nunique"),
+    ot_emp=("Daily_OT", lambda x: (x > 0).sum())
+).reset_index()
+
+# Calculate percentage
+dept_ot["OT_Percent"] = (dept_ot["ot_emp"] / dept_ot["total_emp"]) * 100
+dept_ot["OT_Percent"] = dept_ot["OT_Percent"].round(1)
+
+# Set month order
+dept_ot["Month"] = pd.Categorical(
+    dept_ot["Month"],
+    categories=month_order,
+    ordered=True
+)
+
+dept_ot = dept_ot.sort_values("Month")
+
+# Plot chart
+fig_ot = px.bar(
+    dept_ot,
+    x="Area",
+    y="OT_Percent",
+    color="Month",
+    barmode="group",
+    text="OT_Percent",
+    category_orders={"Month": month_order}
+)
+
+fig_ot.update_traces(texttemplate='%{text}%', textposition='outside')
+
+fig_ot.update_layout(
+    xaxis_title="Department",
+    yaxis_title="OT %",
+    yaxis=dict(range=[0,100]),
+    height=420
+)
+
+st.plotly_chart(fig_ot, use_container_width=True)
+
+# -------------------------------------------------
+# DEPT OT HEATMAP
+# -------------------------------------------------
+# -------------------------------------------------
+# DEPT OT HEATMAP
+# -------------------------------------------------
+
+st.subheader("🔥 Dept OT Heatmap (%)")
+
+# Calculate department OT %
+dept_ot_heat = combined_data.groupby(["Month","Area"]).agg(
+    total_emp=("Personnel Number","nunique"),
+    ot_emp=("Daily_OT", lambda x: (x > 0).sum())
+).reset_index()
+
+dept_ot_heat["OT_Percent"] = (
+    dept_ot_heat["ot_emp"] / dept_ot_heat["total_emp"]
+) * 100
+
+dept_ot_heat["OT_Percent"] = dept_ot_heat["OT_Percent"].round(1)
+
+# Pivot for heatmap
+heatmap_data = dept_ot_heat.pivot(
+    index="Area",
+    columns="Month",
+    values="OT_Percent"
+)
+
+# Fill missing values
+heatmap_data = heatmap_data.fillna(0)
+
+# Create heatmap
+fig_heat = px.imshow(
+    heatmap_data,
+    text_auto=True,
+    aspect="auto",
+    color_continuous_scale="YlOrRd"
+)
+
+fig_heat.update_layout(
+    xaxis_title="Month",
+    yaxis_title="Department",
+    height=450
+)
+
+st.plotly_chart(fig_heat, use_container_width=True)
+
+#st.write(combined_data[["Month","Area","Daily_OT"]].head(20))
+# -------------------------------------------------
+# DETAILED SUMMARY (DROPDOWN)
+# -------------------------------------------------
+
+st.markdown("## 📊 Detailed Summary")
+
+with st.expander("View Detailed Summary"):
+
+    st.subheader("Combined Summary")
+
+    st.dataframe(summary, use_container_width=True)
 
 st.markdown("---")
-
-st.subheader("Workforce OT Analytics")
-
-area_ot = summary.groupby("Area")["Total OT Hours"].sum().reset_index()
-
-fig_area = px.pie(
-    area_ot,
-    names="Area",
-    values="Total OT Hours"
-)
-
-st.plotly_chart(fig_area, use_container_width=True)
-
-top10 = summary.sort_values(
-    by="Total OT Hours",
-    ascending=False
-).head(10)
-
-fig_top = px.bar(
-    top10,
-    x="Name",
-    y="Total OT Hours",
-    color="Area"
-)
-
-st.plotly_chart(fig_top, use_container_width=True)
-
-daily_ot = combined_data.groupby("Date")["Daily_OT"].sum().reset_index()
-
-fig_trend = px.line(
-    daily_ot,
-    x="Date",
-    y="Daily_OT",
-    markers=True
-)
-
-st.plotly_chart(fig_trend, use_container_width=True)
-
-ot_nonzero = summary[summary["Total OT Hours"] > 0]
-
-counts, bins = np.histogram(
-    ot_nonzero["Total OT Hours"],
-    bins=15
-)
-
-centers = 0.5 * (bins[:-1] + bins[1:])
-
-fig_hist = go.Figure()
-
-fig_hist.add_bar(
-    x=centers,
-    y=counts
-)
-
-fig_hist.update_layout(
-    title="OT Distribution",
-    xaxis_title="OT Hours",
-    yaxis_title="Employees"
-)
-
-st.plotly_chart(fig_hist, use_container_width=True)
