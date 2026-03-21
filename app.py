@@ -4,7 +4,7 @@ import numpy as np
 # -------------------------------
 # FILE PATH
 # -------------------------------
-ATTENDANCE_FILE = "data/attendance.xlsx"
+ATTENDANCE_FILE = "attendance.xlsx"
 
 # -------------------------------
 # HOLIDAYS
