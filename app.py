@@ -428,21 +428,21 @@ with c1:
     <h2>⏱</h2><h4>Working hrs</h4><h4>>60 / Week</h4>
     <h2 style="color:red;">{len(week_violation)}</h2><p>Employees</p></div>""", unsafe_allow_html=True)
     if st.button("", key="week_tile"):
-        st.session_state.show_week = True
+        st.session_state.show_week = not st.session_state.get("show_week", False)
 
 with c2:
     st.markdown(f"""<div style="background:#fff3e0;padding:25px;border-radius:12px;text-align:center;border:2px solid orange;">
     <h2>📈</h2><h4>OT hrs</h4><h4>>50 / Quarter</h4>
     <h2 style="color:orange;">{len(ot_violation)}</h2><p>Employees</p></div>""", unsafe_allow_html=True)
     if st.button("", key="ot_tile"):
-        st.session_state.show_ot = True
+        st.session_state.show_week = not st.session_state.get("show_ot", False)
 
 with c3:
     st.markdown(f"""<div style="background:#f3e5f5;padding:25px;border-radius:12px;text-align:center;border:2px solid purple;">
     <h2>🔁</h2><h4>Continuous Punch</h4><h4>>10 Days</h4>
     <h2 style="color:purple;">{len(cont_violation)}</h2><p>Employees</p></div>""", unsafe_allow_html=True)
     if st.button("", key="cont_tile"):
-        st.session_state.show_cont = True
+        st.session_state.show_week = not st.session_state.get("show_cont", False)
 
 
 
