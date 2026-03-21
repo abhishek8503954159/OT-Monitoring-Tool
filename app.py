@@ -442,7 +442,7 @@ with c3:
     <h2>🔁</h2><h4>Continuous Punch</h4><h4>>10 Days</h4>
     <h2 style="color:purple;">{len(cont_violation)}</h2><p>Employees</p></div>""", unsafe_allow_html=True)
     if st.button("", key="cont_tile"):
-        st.session_state.show_week = not st.session_state.get("show_cont", False)
+        st.session_state.show_cont = not st.session_state.show_cont
 
 
 
