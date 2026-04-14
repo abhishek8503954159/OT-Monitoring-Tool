@@ -1,5 +1,9 @@
 import pandas as pd
 import numpy as np
+import streamlit as st
+
+# Import authentication module
+from auth import require_auth
 
 # -------------------------------
 # FILE PATH
@@ -88,13 +92,15 @@ def process_sheet(sheet):
         var_name="Date",
         value_name="Daily_Hours"
     )
-    print("a")
+    #print("a")
     #print(df_long.head(5))
-    print("b")
+    #print("b")
     df_long["Date"] = pd.to_datetime(df_long["Date"])
     df_long["Daily_Hours"] = pd.to_numeric(df_long["Daily_Hours"], errors="coerce").fillna(0)
     df_long["Daily_Hours"] = df_long["Daily_Hours"].apply(normalize_hours)
-
+    print("a")
+    df_long["Daily_Hours"].head(10)
+    print("b")
     df_long["Weekday"] = df_long["Date"].dt.weekday
 
     is_sunday = df_long["Weekday"] == 6
@@ -107,7 +113,7 @@ def process_sheet(sheet):
     )
 
     return df_long
-
+    df_long.head(5)
 
 # -------------------------------
 # MAIN EXECUTION
@@ -373,9 +379,10 @@ print("✅ Continuous Heatmap Ready")
 # STREAMLIT UI
 # =================================================
 
-import streamlit as st
+st.set_page_config(layout="wide", page_title="OT Monitoring Dashboard")
 
-st.set_page_config(layout="wide")
+# Require authentication - shows login page if not authenticated
+require_auth()
 
 st.markdown("""<style>
 div[data-testid="stVerticalBlock"]{gap:0.5rem;}
