@@ -19,9 +19,6 @@ holiday_list = pd.to_datetime([
     "20-10-2026","09-11-2026","11-11-2026"
 ], format="%d-%m-%Y")
 
-# -------------------------------
-# HELPER FUNCTION
-# -------------------------------
 def normalize_hours(x):
     try:
         return round(float(x))
